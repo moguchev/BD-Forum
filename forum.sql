@@ -3,14 +3,18 @@
 
 -- DROP TABLE posts;
 
+CREATE EXTENSION IF NOT EXISTS citext;
+
 DROP TABLE IF EXISTS users;
 CREATE TABLE users(
-    id SERIAL PRIMARY KEY,
-    about text,
-    email text NOT NULL UNIQUE,
-    fullname text NOT NULL,
-    nickname text NOT NULL UNIQUE
+    about TEXT,
+    email citext NOT NULL UNIQUE,
+    fullname TEXT NOT NULL,
+    nickname citext PRIMARY KEY COLLATE "POSIX"
 );
+
+CREATE INDEX idx_users_nick ON users (nickname);
+CREATE INDEX idx_users_email ON users (email);
 
 -- CREATE TABLE forums(
 --     id serial,

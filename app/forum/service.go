@@ -5,5 +5,7 @@ import (
 )
 
 type ServiceInterface interface {
-	CreateUser(NewUser, string) (User, error)
+	CreateUser(User) ([]User, error)
+	GetUser(string) (User, error)
+	UpdateUser(User) error
 }

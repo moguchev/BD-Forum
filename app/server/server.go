@@ -10,16 +10,16 @@ import (
 	"github.com/moguchev/BD-Forum/app/server/delivery"
 	"github.com/moguchev/BD-Forum/pkg/config"
 
+	"github.com/gorilla/mux"
 	"github.com/jackc/pgx"
 	"github.com/jackc/pgx/stdlib"
 	"github.com/jmoiron/sqlx"
-	"github.com/gorilla/mux"
 )
 
 func NewRouter() (*mux.Router, error) {
 	router := mux.NewRouter()
 
-	DBConn, err := OpenSqlxViaPgxConnPool(config.DBPath)
+	DBConn, err := ConnectToDB(config.DBPath)
 	if err != nil {
 		return nil, err
 	}
@@ -41,7 +41,10 @@ func NewRouter() (*mux.Router, error) {
 		Service: uS,
 	}
 
+	// User
 	router.HandleFunc("/user/{nickname}/create", h.CreateUser).Methods(http.MethodPost)
+	router.HandleFunc("/user/{nickname}/profile", h.GetUserByNick).Methods(http.MethodGet)
+	router.HandleFunc("/user/{nickname}/profile", h.UpdateUser).Methods(http.MethodPost)
 
 	return router, nil
 }
@@ -52,16 +55,16 @@ func RunServer() {
 		log.Println(err.Error())
 		log.Fatal("Failed to create router")
 	}
+
+	log.Println("Listening ", config.HostAddress)
 	log.Fatal(http.ListenAndServe(config.HostAddress, router))
 }
 
-func OpenSqlxViaPgxConnPool(psqURI string) (*sqlx.DB, error) {
+func ConnectToDB(psqURI string) (*sqlx.DB, error) {
 	conf, err := pgx.ParseURI(psqURI)
 	if err != nil {
 		return nil, err
 	}
-
-	fmt.Println(conf)
 
 	connPool, err := pgx.NewConnPool(pgx.ConnPoolConfig{
 		ConnConfig:     conf,
@@ -75,6 +78,6 @@ func OpenSqlxViaPgxConnPool(psqURI string) (*sqlx.DB, error) {
 
 	nativeDB := stdlib.OpenDBFromPool(connPool)
 
-	fmt.Println("OpenSqlxViaPgxConnPool: the connection was created")
+	fmt.Println("Connection to DB was created")
 	return sqlx.NewDb(nativeDB, "pgx"), nil
 }

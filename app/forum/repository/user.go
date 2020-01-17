@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/moguchev/BD-Forum/pkg/messages"
@@ -8,17 +9,30 @@ import (
 	"github.com/moguchev/BD-Forum/pkg/sql_queries"
 )
 
-func (r *Repository) CreateUser(user NewUser, nickname string) error {
-	var id int
-	err := r.DbConn.QueryRow(sql_queries.InsertUser, user.About,
-		user.Email, user.Fullname, nickname).Scan(&id)
+func (r *Repository) CreateUser(u User) error {
+	_, err := r.DbConn.Exec(sql_queries.InsertUser,
+		u.About, u.Email, u.Fullname, u.Nickname)
 
 	if err != nil {
-		fmt.Println(err.Error())
 		return fmt.Errorf(messages.UserAlreadyExists)
 	}
 
-	fmt.Println(id)
+	return nil
+}
+
+func (r *Repository) UpdateUser(u User) error {
+	res, err := r.DbConn.Exec(sql_queries.UpdateUser,
+		u.About, u.Email, u.Fullname, u.Nickname)
+
+	if err != nil {
+		return errors.New(messages.ConflictsInUserUpdate)
+	}
+
+	count, _ := res.RowsAffected()
+
+	if count == 0 {
+		return errors.New(messages.UserNotFound)
+	}
 	return nil
 }
 
@@ -48,4 +62,25 @@ func (r *Repository) GetUserByEmail(email string) (User, error) {
 	}
 
 	return user, nil
+}
+
+func (r *Repository) FindUsers(nickname string, email string) ([]User, error) {
+	var users []User
+
+	rows, err := r.DbConn.Queryx(sql_queries.SelectUsersByNicknameAndEmail, nickname, email)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		user := User{}
+		err = rows.StructScan(&user)
+		if err != nil {
+			return users, err
+		}
+		users = append(users, user)
+	}
+
+	return users, nil
 }

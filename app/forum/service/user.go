@@ -1,36 +1,31 @@
 package service
 
 import (
-	"fmt"
-
-	"github.com/moguchev/BD-Forum/pkg/messages"
 	. "github.com/moguchev/BD-Forum/pkg/models"
 )
 
-func (s Service) CreateUser(newUser NewUser, nickname string) (User, error) {
-	//see a bottle neck - could be done by one query
-	_, err := s.Repository.GetUserByNickname(nickname)
-	if err == nil {
-		return User{}, fmt.Errorf(messages.UserAlreadyExists)
+func (s Service) CreateUser(u User) ([]User, error) {
+	existedUsers, _ := s.Repository.FindUsers(u.Nickname, u.Email)
+
+	if len(existedUsers) > 0 {
+		return existedUsers, nil
 	}
 
-	_, err = s.Repository.GetUserByEmail(nickname)
-	if err == nil {
-		return User{}, fmt.Errorf(messages.UserAlreadyExists)
-	}
-
-	err = s.Repository.CreateUser(newUser, nickname)
+	err := s.Repository.CreateUser(u)
 
 	if err != nil {
-		return User{}, err
+		return nil, err
 	}
 
-	user := User{
-		About:    newUser.About,
-		Email:    newUser.Email,
-		Fullname: newUser.Fullname,
-		Nickname: nickname,
-	}
+	return nil, nil
+}
 
-	return user, nil
+func (s Service) UpdateUser(u User) error {
+	err := s.Repository.UpdateUser(u)
+	return err
+}
+
+func (s Service) GetUser(nickname string) (User, error) {
+	user, err := s.Repository.GetUserByNickname(nickname)
+	return user, err
 }
