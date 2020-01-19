@@ -42,15 +42,20 @@ func (s Service) CreateThread(t Thread) (Thread, error) {
 			break
 		case messages.ForumNotFound:
 			break
-		case messages.ForumAlreadyExists:
-			thread, _ = s.Repository.GetThreadBySlug(thread.Slug)
+		case messages.ThreadAlreadyExists:
+			thread, _ = s.Repository.GetThreadBySlug(t.Slug)
 			break
 		}
 	}
 	return thread, err
 }
 
-func (s Service) GetThreads(forum string) ([]Thread, error) {
-	ths, err := s.Repository.GetThreads(forum)
+func (s Service) GetThreads(forum string, limit int64, since string, desc bool) ([]Thread, error) {
+	ths, err := s.Repository.GetThreads(forum, limit, since, desc)
 	return ths, err
+}
+
+func (s Service) GetUsersByForum(forum string, limit int64, since string, desc bool) ([]User, error) {
+	us, err := s.Repository.GetUsersByForum(forum, limit, since, desc)
+	return us, err
 }

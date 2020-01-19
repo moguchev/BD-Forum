@@ -1,10 +1,13 @@
 package forum
 
 import (
+	"time"
+
 	. "github.com/moguchev/BD-Forum/pkg/models"
 )
 
 type RepositoryInterface interface {
+
 	// user section
 	CreateUser(User) error
 	UpdateUser(User) error
@@ -18,10 +21,17 @@ type RepositoryInterface interface {
 	// forum section
 	CreateForum(NewForum) error
 	GetForum(string) (Forum, error)
-
 	CreateThread(Thread) (Thread, error)
 	GetThreadBySlug(string) (Thread, error)
-	GetThreads(string) ([]Thread, error)
+	GetThreads(string, int64, string, bool) ([]Thread, error)
+	GetUsersByForum(string, int64, string, bool) ([]User, error)
+
+	// thread section
+	GetThreadId(string) (int64, error)
+	GetThreadForumSlug(int64) (string, error)
+	CreatePostsByPacket(int64, string, []Post, time.Time) ([]Post, error)
+	UpdateForumPosts(string, int) error
+	InsertUsersToUsersInForum(map[string]bool, string) error
 
 	InitDBSQL() error
 }

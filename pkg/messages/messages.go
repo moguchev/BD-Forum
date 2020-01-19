@@ -8,4 +8,6 @@ const (
 	ForumAlreadyExists    = "Forum already exists"
 	ForumNotFound         = "Can't find forum: "
 	ThreadAlreadyExists   = "Thread already exists"
+	ThreadNotFound        = "Can't find thread with slug or id: "
+	ParentNotFound        = "Can't find parrent post: "
 )

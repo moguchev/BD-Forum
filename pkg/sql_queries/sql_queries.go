@@ -5,42 +5,47 @@ const (
 				    VALUES($1,$2,$3,$4);`
 
 	UpdateUser = `UPDATE users SET about = $1, email = $2, fullname = $3
-					WHERE nickname = $4;`
+					WHERE LOWER(nickname) = LOWER($4);`
 
 	SelectUserByNickname = `SELECT u.about, u.email, u.fullname, u.nickname 
 							  FROM users as u
-							  WHERE u.nickname = $1;`
+							  WHERE LOWER(u.nickname) = LOWER($1);`
 
 	SelectUserByEmail = `SELECT u.about, u.email, u.fullname, u.nickname 
 						   FROM users as u
-						   WHERE u.email = $1;`
+						   WHERE LOWER(u.email) = LOWER($1);`
 
 	SelectUsersByNicknameAndEmail = `SELECT u.about, u.email, u.fullname, u.nickname 
 									   FROM users as u
-									   WHERE u.nickname = $1
-									   OR u.email = $2;`
+									   WHERE LOWER(u.nickname) = LOWER($1)
+									   OR LOWER(u.email) = LOWER($2);`
 
-	Truncate = "TRUNCATE users, forums, threads RESTART IDENTITY CASCADE;"
+	Truncate = "TRUNCATE users, forums, threads, votes, posts RESTART IDENTITY CASCADE;"
 
 	InsertForum = `INSERT INTO forums(slug, title, user_nick)
 					 VALUES($1,$2,$3);`
 
 	SelectForum = `SELECT posts, slug, threads, title, user_nick
 					 FROM forums
-					 WHERE slug = $1;`
+					 WHERE LOWER(slug) = LOWER($1);`
 
 	InsertThread = `INSERT INTO threads (author, forum, message, created, title, slug)
-						VALUES ($1, (SELECT slug FROM forums WHERE slug = $2), $3,
+						VALUES ($1, (SELECT slug FROM forums WHERE LOWER(slug) = LOWER($2)), $3,
 						COALESCE($4, NOW())::timestamptz, $5, NULLIF($6, ''))
 						RETURNING id, slug, 0, forum`
 
 	SelectThreadBySlug = `SELECT slug, title, message, forum, author, created, votes, id
 							FROM threads 
-							WHERE slug = $1`
+							WHERE LOWER(slug) = LOWER($1)`
 
-	SelectThreads = `SELECT t.slug, t.title, t.message, t.forum, t.author, t.created, t.votes, t.id
-						FROM threads AS t
-						RIGHT OUTER JOIN forums AS f
-						ON t.forum = f.slug
-						WHERE f.slug = $1`
+	QueryTemplateGetForumUsers = `SELECT about, email, fullname, nickname FROM users
+									JOIN (SELECT nickname FROM UsersInForum WHERE forum=$1
+										{{.Since}} ORDER BY nickname {{.Desc}} {{.Limit}}) as l
+										USING (nickname) ORDER BY nickname {{.Desc}}`
+
+	SelectThreadsByForum = `SELECT author, forum, created, id, message, slug, title, votes FROM threads 
+								WHERE LOWER(forum) = ($1) %s ORDER BY created %s %s`
+
+	SelectThreadIdBySlug = `SELECT id FROM threads WHERE lower(slug)=lower($1)`
+	SelectThreadIdById   = `SELECT id FROM threads WHERE id=$1`
 )

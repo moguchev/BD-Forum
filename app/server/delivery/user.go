@@ -126,11 +126,7 @@ func (h *Handler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 		}
 		answer, _ = json.Marshal(msg)
 	} else {
-		var up UserUpdate
-		up.About = user.About
-		up.Email = user.Email
-		up.Fullname = user.Fullname
-		answer, _ = json.Marshal(up)
+		answer, _ = json.Marshal(user)
 	}
 
 	w.WriteHeader(code)

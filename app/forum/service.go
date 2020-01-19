@@ -17,5 +17,10 @@ type ServiceInterface interface {
 	CreateForum(NewForum) (Forum, error)
 	GetForum(string) (Forum, error)
 	CreateThread(Thread) (Thread, error)
-	GetThreads(string) ([]Thread, error)
+	GetThreads(string, int64, string, bool) ([]Thread, error)
+	GetUsersByForum(string, int64, string, bool) ([]User, error)
+
+	//threads sectio
+	CreatePosts(string, []Post) ([]Post, error)
+	// GetThreadId(string) (string, error)
 }

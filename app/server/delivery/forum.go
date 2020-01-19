@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -136,7 +137,14 @@ func (h *Handler) GetThreads(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	threads, err := h.Service.GetThreads(forum)
+	limit, err := strconv.ParseInt(r.FormValue("limit"), 10, 64)
+	since := r.FormValue("since")
+	desc, err := strconv.ParseBool(r.FormValue("desc"))
+	if err != nil {
+		desc = false
+	}
+
+	threads, err := h.Service.GetThreads(forum, limit, since, desc)
 
 	var answer []byte
 
@@ -144,9 +152,41 @@ func (h *Handler) GetThreads(w http.ResponseWriter, r *http.Request) {
 		code = 404
 		answer, _ = json.Marshal(Error{Message: messages.ForumNotFound + forum})
 	} else {
-		answer, _ = json.Marshal(threads) // null instead []
+		answer, _ = json.Marshal(threads)
 	}
 
+	w.WriteHeader(code)
+	w.Write(answer)
+}
+
+func (h *Handler) GetUsersByForum(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+
+	code := 200
+
+	forum, ok := mux.Vars(r)["slug"]
+	if !ok {
+		return
+	}
+
+	limit, err := strconv.ParseInt(r.FormValue("limit"), 10, 64)
+	since := r.FormValue("since")
+	desc, err := strconv.ParseBool(r.FormValue("desc"))
+	if err != nil {
+		desc = false
+	}
+
+	_, err = h.Service.GetForum(forum)
+
+	var answer []byte
+	if err != nil {
+		code = 404
+		answer, _ = json.Marshal(Error{Message: messages.ForumNotFound + forum})
+	} else {
+		users, _ := h.Service.GetUsersByForum(forum, limit, since, desc)
+		answer, _ = json.Marshal(users)
+	}
 	w.WriteHeader(code)
 	w.Write(answer)
 }

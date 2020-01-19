@@ -41,3 +41,21 @@ type Thread struct {
 	Title   string `json:"title"   db:"title"`
 	Votes   int32  `json:"votes"   db:"votes"`
 }
+
+type Post struct {
+	Author   string `json:"author"   db:"author"`
+	Created  string `json:"created"  db:"created"`
+	Forum    string `json:"forum"    db:"forum"`
+	Id       int64  `json:"id"       db:"id"`
+	IsEdited bool   `json:"isEdited" db:"isEdited"`
+	Message  string `json:"message"  db:"message"`
+	Parent   int64  `json:"parent"   db:"parent"`
+	Thread   int32  `json:"thread"   db:"thread"`
+}
+
+type PostAccount struct {
+	Author *User   `json:"author,omitempty"`
+	Forum  *Forum  `json:"forum,omitempty"`
+	Post   Post    `json:"post"`
+	Thread *Thread `json:"thread,omitempty"`
+}

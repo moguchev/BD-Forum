@@ -53,6 +53,9 @@ func NewRouter() (*mux.Router, error) {
 	router.HandleFunc("/forum/{slug}/details", h.GetForum).Methods(http.MethodGet)
 	router.HandleFunc("/forum/{slug}/create", h.CreateThread).Methods(http.MethodPost)
 	router.HandleFunc("/forum/{slug}/threads", h.GetThreads).Methods(http.MethodGet)
+	router.HandleFunc("/forum/{slug}/users", h.GetUsersByForum).Methods(http.MethodGet)
+	// thread
+	router.HandleFunc("/thread/{slug_or_id}/create", h.CreatePost).Methods(http.MethodPost)
 
 	return router, nil
 }
