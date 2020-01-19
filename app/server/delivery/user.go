@@ -29,11 +29,7 @@ func (h *Handler) GetUserByNick(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		code = 404
-
-		var e Error
-		e.Message = messages.UserNotFound + nickname
-
-		answer, _ = json.Marshal(e)
+		answer, _ = json.Marshal(Error{Message: messages.UserNotFound + nickname})
 	} else {
 		answer, _ = json.Marshal(user)
 	}

@@ -1,51 +1,39 @@
--- DROP TABLE threads;
--- DROP TABLE forums;
-
--- DROP TABLE posts;
-
 CREATE EXTENSION IF NOT EXISTS citext;
 
 DROP TABLE IF EXISTS users;
-CREATE TABLE users(
+CREATE UNLOGGED TABLE users(
     about TEXT,
-    email citext NOT NULL UNIQUE,
+    email CITEXT NOT NULL UNIQUE CONSTRAINT email_right CHECK(email ~ '^.*@[A-Za-z0-9\-_\.]*$'),
     fullname TEXT NOT NULL,
-    nickname citext PRIMARY KEY COLLATE "POSIX"
+    nickname CITEXT PRIMARY KEY COLLATE "POSIX" CONSTRAINT nick_right CHECK(nickname ~ '^[A-Za-z0-9_\.]*$')
 );
 
 CREATE INDEX idx_users_nick ON users (nickname);
 CREATE INDEX idx_users_email ON users (email);
 
--- CREATE TABLE forums(
---     id serial,
---     posts integer DEFAULT 0 NOT NULL,
---     slug text PRIMARY KEY,
---     threads integer DEFAULT 0 NOT NULL,
---     title text NOT NULL,
---     person text NOT NULL REFERENCES persons(nickname) ON DELETE CASCADE NOT NULL
--- );
+DROP TABLE IF EXISTS forums;
+CREATE UNLOGGED TABLE forums (
+    posts INTEGER DEFAULT 0,
+    slug CITEXT PRIMARY KEY CONSTRAINT slug_correct CHECK(slug ~ '^(\d|\w|-|_)*(\w|-|_)(\d|\w|-|_)*$'),,
+    threads INTEGER DEFAULT 0,  
+    title TEXT NOT NULL,
+    user_nick CITEXT REFERENCES users(nickname) ON DELETE RESTRICT ON UPDATE RESTRICT
+);
 
--- CREATE TABLE threads(
---     id SERIAL PRIMARY KEY,
---     author text NOT NULL REFERENCES persons(nickname) ON DELETE CASCADE NOT NULL,
---     created timestamptz DEFAULT now(),
---     forum text REFERENCES forums(slug) ON DELETE CASCADE NOT NULL,
---     message text NOT NULL,
---     slug text,
---     title text NOT NULL,
---     votes integer DEFAULT 0 NOT NULL
--- );
+CREATE INDEX idx_forum_slug ON forums (slug);
 
--- CREATE TABLE posts(
---     id SERIAL PRIMARY KEY, --maybe need to switch serial to int
---     author text NOT NULL REFERENCES persons(nickname) ON DELETE CASCADE NOT NULL,
---     created timestamp with time zone DEFAULT '1970-01-01 03:00:00+03'::timestamp with time zone NOT NULL,
---     forum text REFERENCES forums(slug) ON DELETE CASCADE NOT NULL,
---     is_edited boolean DEFAULT false NOT NULL,
---     message text NOT NULL,
---     parent integer DEFAULT 0 NOT NULL,
---     thread integer REFERENCES threads(id) ON DELETE CASCADE NOT NULL
--- );
+DROP TABLE IF EXISTS threads;
+CREATE UNLOGGED TABLE threads (
+    id SERIAL PRIMARY KEY,
+    slug CITEXT UNIQUE CONSTRAINT slug_correct CHECK(slug ~ '^(\d|\w|-|_)*(\w|-|_)(\d|\w|-|_)*$'),
+    forum CITEXT REFERENCES forums (slug) ON DELETE CASCADE ON UPDATE RESTRICT NOT NULL,
+    author CITEXT REFERENCES users (nickname) ON DELETE CASCADE ON UPDATE CASCADE NOT NULL,
+    created TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    message TEXT NOT NULL,
+    title TEXT NOT NULL,
+    votes INTEGER NOT NULL DEFAULT 0
+);
+
 
 -- CREATE SEQUENCE threads_id_seq
 --     AS integer

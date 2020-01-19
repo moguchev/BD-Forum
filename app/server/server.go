@@ -41,10 +41,18 @@ func NewRouter() (*mux.Router, error) {
 		Service: uS,
 	}
 
-	// User
+	// user
 	router.HandleFunc("/user/{nickname}/create", h.CreateUser).Methods(http.MethodPost)
 	router.HandleFunc("/user/{nickname}/profile", h.GetUserByNick).Methods(http.MethodGet)
 	router.HandleFunc("/user/{nickname}/profile", h.UpdateUser).Methods(http.MethodPost)
+	// service
+	router.HandleFunc("/service/clear", h.Clear).Methods(http.MethodPost)
+	router.HandleFunc("/service/status", h.Status).Methods(http.MethodGet)
+	// forum
+	router.HandleFunc("/forum/create", h.CreateForum).Methods(http.MethodPost)
+	router.HandleFunc("/forum/{slug}/details", h.GetForum).Methods(http.MethodGet)
+	router.HandleFunc("/forum/{slug}/create", h.CreateThread).Methods(http.MethodPost)
+	router.HandleFunc("/forum/{slug}/threads", h.GetThreads).Methods(http.MethodGet)
 
 	return router, nil
 }

@@ -5,12 +5,23 @@ import (
 )
 
 type RepositoryInterface interface {
-	// User section
+	// user section
 	CreateUser(User) error
 	UpdateUser(User) error
 	GetUserByNickname(string) (User, error)
 	GetUserByEmail(string) (User, error)
 	FindUsers(string, string) ([]User, error)
+
+	// service section
+	Clear() error
+
+	// forum section
+	CreateForum(NewForum) error
+	GetForum(string) (Forum, error)
+
+	CreateThread(Thread) (Thread, error)
+	GetThreadBySlug(string) (Thread, error)
+	GetThreads(string) ([]Thread, error)
 
 	InitDBSQL() error
 }

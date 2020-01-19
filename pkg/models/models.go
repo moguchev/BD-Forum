@@ -16,3 +16,28 @@ type UserUpdate struct {
 	Email    string `json:"email"    db:"email"`
 	Fullname string `json:"fullname" db:"fullname"`
 }
+
+type NewForum struct {
+	Slug  string `json:"slug"     db:"slug"`
+	Title string `json:"title"    db:"title"`
+	User  string `json:"user"     db:"user_nick"`
+}
+
+type Forum struct {
+	Posts   int64  `json:"posts"    db:"posts"`
+	Slug    string `json:"slug"     db:"slug"`
+	Threads int32  `json:"threads"  db:"threads"`
+	Title   string `json:"title"    db:"title"`
+	User    string `json:"user"     db:"user_nick"`
+}
+
+type Thread struct {
+	Author  string `json:"author"  db:"author"`
+	Created string `json:"created" db:"created"`
+	Forum   string `json:"forum"   db:"forum"`
+	Id      int32  `json:"id"      db:"id"`
+	Message string `json:"message" db:"message"`
+	Slug    string `json:"slug"    db:"slug"`
+	Title   string `json:"title"   db:"title"`
+	Votes   int32  `json:"votes"   db:"votes"`
+}
