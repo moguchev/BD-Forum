@@ -44,10 +44,8 @@ func (r *Repository) GetUserByNickname(nickname string) (User, error) {
 	err := row.StructScan(&user)
 	if err != nil {
 		fmt.Println(err)
-		return user, err
 	}
-
-	return user, nil
+	return user, err
 }
 
 func (r *Repository) GetUserByEmail(email string) (User, error) {

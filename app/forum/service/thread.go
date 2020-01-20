@@ -78,3 +78,15 @@ func (s Service) GetPosts(slugOrID string, lim int64, since, sort string, desc b
 
 	return s.Repository.GetPosts(id, lim, since, sort, desc)
 }
+
+func (s Service) CreateVote(slugOrID string, v Vote) (Thread, error) {
+	id, err := s.Repository.GetThreadId(slugOrID)
+	if err != nil {
+		return Thread{}, err
+	}
+	err = s.Repository.CreateVote(id, v)
+	if err != nil {
+		return Thread{}, err
+	}
+	return s.Repository.GetThreadById(id)
+}

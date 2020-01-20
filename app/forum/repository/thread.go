@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log"
 	"strconv"
 	"strings"
 	"sync"
@@ -13,6 +12,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/jackc/pgtype"
 	"github.com/moguchev/BD-Forum/pkg/messages"
 	. "github.com/moguchev/BD-Forum/pkg/models"
 	"github.com/moguchev/BD-Forum/pkg/mytools"
@@ -67,10 +67,17 @@ type comandArgs struct {
 }
 
 func (r *Repository) GetThreadById(id int64) (Thread, error) {
-	row := r.DbConn.QueryRowx(sql_queries.SelectThreadById, id)
-
 	var t Thread
-	err := row.StructScan(&t)
+	var created time.Time
+	var slug pgtype.Text
+
+	err := r.DbConn.QueryRowx(sql_queries.SelectThreadById, id).
+		Scan(&slug, &t.Title, &t.Message, &t.Forum, &t.Author,
+			&created, &t.Votes, &t.Id)
+
+	t.Created = created.Format(time.RFC3339Nano)
+	t.Slug = slug.String
+
 	if err != nil {
 		fmt.Println(err)
 		err = errors.New(messages.ThreadNotFound)
@@ -80,10 +87,17 @@ func (r *Repository) GetThreadById(id int64) (Thread, error) {
 }
 
 func (r *Repository) GetThreadBySlug(slug string) (Thread, error) {
-	row := r.DbConn.QueryRowx(sql_queries.SelectThreadBySlug, slug)
-
 	var t Thread
-	err := row.StructScan(&t)
+
+	var created time.Time
+	var s pgtype.Text
+
+	err := r.DbConn.QueryRowx(sql_queries.SelectThreadBySlug, slug).
+		Scan(&s, &t.Title, &t.Message, &t.Forum, &t.Author,
+			&created, &t.Votes, &t.Id)
+
+	t.Created = created.Format(time.RFC3339Nano)
+	t.Slug = s.String
 	if err != nil {
 		fmt.Println(err)
 		err = errors.New(messages.ThreadNotFound)
@@ -131,14 +145,21 @@ func (r *Repository) UpdateThread(t Thread) (Thread, error) {
 
 	query = fmt.Sprintf(query, strings.Join(set, ", "), keyName)
 	query += postfix
-	log.Printf(query)
 
 	row := r.DbConn.QueryRow(query, params...)
-	err := row.Scan(&thread.Slug, &thread.Title, &thread.Message, &thread.Forum,
-		&thread.Author, &thread.Created, &thread.Votes, &thread.Id)
+
+	var created time.Time
+	var s sql.NullString
+	err := row.Scan(&s, &thread.Title, &thread.Message, &thread.Forum,
+		&thread.Author, &created, &thread.Votes, &thread.Id)
 	if err != nil {
 		return thread, err
 	}
+	if s.Valid {
+		thread.Slug = s.String
+	}
+	thread.Created = created.Format(time.RFC3339Nano)
+
 	return thread, err
 }
 
@@ -202,8 +223,6 @@ func (r *Repository) CreatePostsByPacket(threadId int64, forumSLug string, posts
 		posts[i].Created = created.Format(time.RFC3339Nano)
 		posts[i].IsEdited = false
 		posts[i].Thread = int32(threadId)
-
-		log.Println(posts)
 		i++
 	}
 
@@ -321,7 +340,6 @@ func (r *Repository) GetPosts(threadID, limit int64, since string, sort string, 
 	}
 	query := queryBuffer.String()
 
-	log.Println(query)
 	rows, err := r.DbConn.Query(query, params...)
 	if err != nil {
 		return nil, err
@@ -339,4 +357,9 @@ func (r *Repository) GetPosts(threadID, limit int64, since string, sort string, 
 	}
 
 	return posts, nil
+}
+
+func (r *Repository) CreateVote(id int64, v Vote) error {
+	_, err := r.DbConn.Exec(sql_queries.InsertVote, id, v.Nickname, v.Voice)
+	return err
 }

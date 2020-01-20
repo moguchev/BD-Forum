@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"io/ioutil"
 
-	"github.com/moguchev/BD-Forum/pkg/config"
 	"github.com/jmoiron/sqlx"
+	"github.com/moguchev/BD-Forum/pkg/config"
 )
 
 type Repository struct {

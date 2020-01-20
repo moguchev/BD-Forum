@@ -37,7 +37,7 @@ type Thread struct {
 	Forum   string `json:"forum"   db:"forum"`
 	Id      int32  `json:"id"      db:"id"`
 	Message string `json:"message" db:"message"`
-	Slug    string `json:"slug"    db:"slug"`
+	Slug    string `json:"slug,omitempty"    db:"slug"`
 	Title   string `json:"title"   db:"title"`
 	Votes   int32  `json:"votes"   db:"votes"`
 }
@@ -58,4 +58,16 @@ type PostAccount struct {
 	Forum  *Forum  `json:"forum,omitempty"`
 	Post   Post    `json:"post"`
 	Thread *Thread `json:"thread,omitempty"`
+}
+
+type Status struct {
+	Forum  int64 `json:"forum"`
+	Post   int64 `json:"post"`
+	Thread int64 `json:"thread"`
+	User   int64 `json:"user"`
+}
+
+type Vote struct {
+	Nickname string `json:"nickname"`
+	Voice    int    `json:"voice"`
 }

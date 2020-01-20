@@ -166,3 +166,39 @@ func (h *Handler) GetPosts(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(code)
 	w.Write(answer)
 }
+
+func (h *Handler) CreateVote(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+
+	code := 200
+
+	slugOrID, ok := mux.Vars(r)["slug_or_id"]
+	if !ok {
+		return
+	}
+
+	bytes, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		log.Fatalf(err.Error())
+		return
+	}
+
+	var v Vote
+	err = json.Unmarshal(bytes, &v)
+	if err != nil {
+		log.Fatalf(err.Error())
+		return
+	}
+
+	thread, err := h.Service.CreateVote(slugOrID, v)
+	answer, _ := json.Marshal(thread)
+
+	if err != nil {
+		code = 404
+		answer, _ = json.Marshal(Error{Message: err.Error()})
+	}
+
+	w.WriteHeader(code)
+	w.Write(answer)
+}

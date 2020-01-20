@@ -17,6 +17,7 @@ type RepositoryInterface interface {
 
 	// service section
 	Clear() error
+	Status() (Status, error)
 
 	// forum section
 	CreateForum(NewForum) error
@@ -35,6 +36,11 @@ type RepositoryInterface interface {
 	GetThreadById(int64) (Thread, error)
 	UpdateThread(Thread) (Thread, error)
 	GetPosts(int64, int64, string, string, bool) ([]Post, error)
+	CreateVote(int64, Vote) error
+
+	// post
+	GetPostById(int64) (Post, error)
+	UpdatePost(int64, Post) (Post, error)
 
 	InitDBSQL() error
 }

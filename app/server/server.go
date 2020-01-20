@@ -17,7 +17,7 @@ import (
 )
 
 func NewRouter() (*mux.Router, error) {
-	router := mux.NewRouter()
+	r := mux.NewRouter()
 
 	DBConn, err := ConnectToDB(config.DBPath)
 	if err != nil {
@@ -41,6 +41,7 @@ func NewRouter() (*mux.Router, error) {
 		Service: uS,
 	}
 
+	router := r.PathPrefix("/api").Subrouter()
 	// user
 	router.HandleFunc("/user/{nickname}/create", h.CreateUser).Methods(http.MethodPost)
 	router.HandleFunc("/user/{nickname}/profile", h.GetUserByNick).Methods(http.MethodGet)
@@ -59,6 +60,10 @@ func NewRouter() (*mux.Router, error) {
 	router.HandleFunc("/thread/{slug_or_id}/details", h.GetThread).Methods(http.MethodGet)
 	router.HandleFunc("/thread/{slug_or_id}/details", h.UpdateThread).Methods(http.MethodPost)
 	router.HandleFunc("/thread/{slug_or_id}/posts", h.GetPosts).Methods(http.MethodGet)
+	router.HandleFunc("/thread/{slug_or_id}/vote", h.CreateVote).Methods(http.MethodPost)
+	// post
+	router.HandleFunc("/post/{id}/details", h.GetPost).Methods(http.MethodGet)
+	router.HandleFunc("/post/{id}/details", h.UpdatePost).Methods(http.MethodPost)
 
 	return router, nil
 }

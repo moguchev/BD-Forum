@@ -1,13 +1,13 @@
 package service
 
-import ()
+import (
+	. "github.com/moguchev/BD-Forum/pkg/models"
+)
 
 func (s Service) Clear() error {
-	err := s.Repository.Clear()
+	return s.Repository.Clear()
+}
 
-	if err != nil {
-		return err
-	}
-
-	return nil
+func (s Service) Status() (Status, error) {
+	return s.Repository.Status()
 }

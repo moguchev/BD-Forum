@@ -105,13 +105,14 @@ CREATE INDEX IF NOT EXISTS thread_forum ON threads (forum);
 CREATE INDEX IF NOT EXISTS thread_forum_created on threads(LOWER(forum), created);
 
 -- AUTO votes+- IN THREADS
+
 CREATE OR REPLACE FUNCTION update_thread_vote_counter() RETURNS trigger AS $$
     BEGIN
         IF TG_OP='INSERT' THEN
-            UPDATE Thread SET votes=votes+NEW.vote WHERE id=NEW.thread;
+            UPDATE threads SET votes=votes+NEW.vote WHERE id=NEW.thread;
             RETURN NEW;
         ELSIF TG_OP='UPDATE' THEN
-            UPDATE Thread SET votes=votes+(NEW.vote-OLD.vote) WHERE id=NEW.thread;
+            UPDATE threads SET votes=votes+(NEW.vote-OLD.vote) WHERE id=NEW.thread;
             RETURN NEW;
         ELSE
             RAISE EXCEPTION 'Invalid call update_thread_vote_counter()';
@@ -129,9 +130,9 @@ CREATE TRIGGER update_thread_vote AFTER INSERT OR UPDATE ON votes
 -- ######################################################
 DROP TABLE IF EXISTS votes;
 CREATE UNLOGGED TABLE votes (
-    thread INTEGER,
+    thread BIGINT REFERENCES threads (id) ON DELETE CASCADE ON UPDATE CASCADE,
     author CITEXT REFERENCES users (nickname) ON DELETE CASCADE ON UPDATE CASCADE NOT NULL,
-    vote SMALLINT DEFAULT 0,
+    vote SMALLINT CONSTRAINT check_vote CHECK (vote = -1 OR vote = 1 ) DEFAULT 0,
     UNIQUE (thread, author)
 );
 -- indexes

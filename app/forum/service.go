@@ -12,6 +12,7 @@ type ServiceInterface interface {
 
 	// service section
 	Clear() error
+	Status() (Status, error)
 
 	// forum section
 	CreateForum(NewForum) (Forum, error)
@@ -20,10 +21,14 @@ type ServiceInterface interface {
 	GetThreads(string, int64, string, bool) ([]Thread, error)
 	GetUsersByForum(string, int64, string, bool) ([]User, error)
 
-	//threads sectio
+	// threads sectio
 	CreatePosts(string, []Post) ([]Post, error)
 	GetThreadById(int64) (Thread, error)
 	GetThreadBySlug(string) (Thread, error)
 	UpdateThread(Thread) (Thread, error)
 	GetPosts(string, int64, string, string, bool) ([]Post, error)
+	CreateVote(string, Vote) (Thread, error)
+	// post
+	GetPostAccount(int64, []string) (PostAccount, error)
+	UpdatePost(int64, Post) (Post, error)
 }

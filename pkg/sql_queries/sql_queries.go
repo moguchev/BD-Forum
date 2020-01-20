@@ -22,11 +22,11 @@ const (
 
 	Truncate = `TRUNCATE ForumPosts;
 				TRUNCATE UsersInForum;
-				TRUNCATE TABLE vote CASCADE;
-				TRUNCATE TABLE Post CASCADE;
-				TRUNCATE TABLE Thread CASCADE;
-				TRUNCATE TABLE Forum CASCADE;
-				TRUNCATE TABLE Users CASCADE;`
+				TRUNCATE TABLE votes CASCADE;
+				TRUNCATE TABLE posts CASCADE;
+				TRUNCATE TABLE threads CASCADE;
+				TRUNCATE TABLE forums CASCADE;
+				TRUNCATE TABLE users CASCADE;`
 
 	SelectAll = `SELECT * FROM (SELECT COUNT(Posts.id) AS post FROM Posts) AS Post,
 				(SELECT COUNT(Threads.id) AS thread FROM Threads) AS Thread,
@@ -58,10 +58,19 @@ const (
 										{{.Since}} ORDER BY nickname {{.Desc}} {{.Limit}}) as l
 										USING (nickname) ORDER BY nickname {{.Desc}}`
 
-	SelectThreadsByForum = `SELECT author, forum, created, id, message, slug, title, votes FROM threads 
+	SelectThreadsByForum = `SELECT author, forum, created, id, message, slug, title, votes
+								FROM threads 
 								WHERE LOWER(forum) = ($1) %s ORDER BY created %s %s`
 
 	SelectThreadIdBySlug = `SELECT id FROM threads WHERE lower(slug)=lower($1)`
 
 	SelectThreadIdById = `SELECT id FROM threads WHERE id=$1`
+
+	InsertVote = `INSERT INTO votes(thread, author, vote) VALUES ($1, $2, $3)
+					ON CONFLICT ON CONSTRAINT votes_thread_author_key DO
+					UPDATE SET vote=$3 WHERE votes.thread=$1 AND lower(votes.author)=lower($2)`
+
+	SelectPostById = `SELECT author, created, forum, id, message, thread, isedited, parent 
+						FROM posts 
+						WHERE id = $1`
 )
