@@ -20,43 +20,13 @@ CREATE INDEX IF NOT EXISTS idx_users_email ON users (email);
 DROP TABLE IF EXISTS forums;
 CREATE UNLOGGED TABLE forums (
     posts INTEGER DEFAULT 0,
-    slug CITEXT PRIMARY KEY CONSTRAINT slug_correct CHECK(slug ~ '^(\d|\w|-|_)*(\w|-|_)(\d|\w|-|_)*$'),,
+    slug CITEXT PRIMARY KEY CONSTRAINT slug_correct CHECK(slug ~ '^(\d|\w|-|_)*(\w|-|_)(\d|\w|-|_)*$'),
     threads INTEGER DEFAULT 0,  
     title TEXT NOT NULL,
     user_nick CITEXT REFERENCES users(nickname) ON DELETE RESTRICT ON UPDATE RESTRICT
 );
 -- indexes
 CREATE INDEX IF NOT EXISTS idx_forum_slug ON forums (LOWER(slug));
--- functions
--- AUTO threads+- IN FORUMS
-CREATE OR REPLACE FUNCTION update_forum_threads() RETURNS trigger AS $update_forum_threads$
-    BEGIN
-        IF TG_OP='INSERT' THEN
-            UPDATE forums SET threads=threads+1 WHERE slug=NEW.forum;
-            RETURN NEW;
-        ELSIF TG_OP='DELETE' OR TG_OP='TRUNCATE' THEN
-            UPDATE forums SET threads=threads-1 WHERE slug=OLD.forum;
-            RETURN OLD;
-        ELSIF TG_OP='UPDATE' THEN
-            IF NEW.forum!=OLD.forum THEN
-                RAISE EXCEPTION 'const .forum';
-            END IF;
-            IF NEW.id!=OLD.id THEN
-                RAISE EXCEPTION 'const .id';
-            END IF;
-            IF NEW.slug!=OLD.slug THEN
-                RAISE EXCEPTION 'const .slug';
-            END IF;
-            RETURN NEW;
-        END IF;
-        RETURN NEW;
-    END
-$update_forum_threads$ LANGUAGE plpgsql;
-
-DROP TRIGGER IF EXISTS update_forum_threads ON threads;
-CREATE TRIGGER update_forum_threads AFTER UPDATE OR INSERT OR DELETE ON threads
-    FOR EACH ROW EXECUTE PROCEDURE update_forum_threads();
-
 
 -- ######################################################
 -- USERS IN FORUM
@@ -68,21 +38,6 @@ CREATE UNLOGGED TABLE UsersInForum (
 );
 -- indexes
 CREATE UNIQUE INDEX forum_users_idx ON UsersInForum(forum, nickname);
--- functions
--- AUTO INSERT TO UsersInForum
-CREATE OR REPLACE FUNCTION users_forum() RETURNS trigger AS $$
-    BEGIN
-        IF NEW.forum IS NOT NULL THEN
-            INSERT INTO UsersInForum(forum, nickname) VALUES (NEW.forum, new.author) ON conflict do nothing;
-        END IF;
-        RETURN new;
-    END;
-$$ language plpgsql;
--- trigers
-DROP trigger IF EXISTS users_forum ON threads;
-CREATE trigger users_forum AFTER INSERT ON threads
-    FOR EACH ROW EXECUTE PROCEDURE users_forum();
-
 
 -- ######################################################
 -- Threads
@@ -104,27 +59,6 @@ CREATE INDEX IF NOT EXISTS thread_author ON threads (LOWER(author));
 CREATE INDEX IF NOT EXISTS thread_forum ON threads (forum);
 CREATE INDEX IF NOT EXISTS thread_forum_created on threads(LOWER(forum), created);
 
--- AUTO votes+- IN THREADS
-
-CREATE OR REPLACE FUNCTION update_thread_vote_counter() RETURNS trigger AS $$
-    BEGIN
-        IF TG_OP='INSERT' THEN
-            UPDATE threads SET votes=votes+NEW.vote WHERE id=NEW.thread;
-            RETURN NEW;
-        ELSIF TG_OP='UPDATE' THEN
-            UPDATE threads SET votes=votes+(NEW.vote-OLD.vote) WHERE id=NEW.thread;
-            RETURN NEW;
-        ELSE
-            RAISE EXCEPTION 'Invalid call update_thread_vote_counter()';
-        END IF;
-    END
-$$ LANGUAGE plpgsql;
-
-DROP TRIGGER IF EXISTS update_thread_vote ON votes;
-CREATE TRIGGER update_thread_vote AFTER INSERT OR UPDATE ON votes
-    FOR EACH ROW EXECUTE PROCEDURE update_thread_vote_counter();
-
-
 -- ######################################################
 -- VOTES
 -- ######################################################
@@ -137,7 +71,6 @@ CREATE UNLOGGED TABLE votes (
 );
 -- indexes
 CREATE INDEX IF NOT EXISTS vote_coverage ON votes(thread, lower(author), vote);
-
 
 -- ######################################################
 -- POSTS
@@ -169,21 +102,6 @@ CREATE INDEX IF NOT EXISTS post_forum_author ON posts(forum, author);
 CREATE INDEX post_parent_thread_path_id ON posts(thread, (path[1]), id) WHERE parent IS NUll;
 CREATE INDEX IF NOT EXISTS idx_sth ON posts (LOWER(author));
 
---functions
--- AUTO path IN POSTS
-CREATE OR REPLACE FUNCTION post_path() RETURNS TRIGGER AS
-$$
-BEGIN
-    NEW.path = (SELECT path FROM posts WHERE id = NEW.parent) || NEW.id;
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
--- triggers
-DROP TRIGGER IF EXISTS post_path ON posts;
-CREATE TRIGGER post_path BEFORE INSERT ON posts
-    FOR EACH ROW EXECUTE PROCEDURE post_path();
-
-
 -- ######################################################
 -- FORUM-POSTS
 -- ######################################################
@@ -192,6 +110,8 @@ CREATE UNLOGGED TABLE ForumPosts (
     forum citext PRIMARY KEY,
     posts INTEGER DEFAULT 0
 );
+
+
 -- functions
 -- AUTO ForumPosts
 CREATE OR REPLACE FUNCTION update_forum_posts() RETURNS trigger AS $update_forum_posts$
@@ -228,4 +148,80 @@ DROP TRIGGER IF EXISTS update_forum_posts ON posts;
 CREATE TRIGGER update_forum_posts BEFORE UPDATE OR DELETE ON posts
     FOR EACH ROW EXECUTE PROCEDURE update_forum_posts();
 
+-- functions
+-- AUTO threads+- IN FORUMS
+CREATE OR REPLACE FUNCTION update_forum_threads() RETURNS trigger AS $update_forum_threads$
+    BEGIN
+        IF TG_OP='INSERT' THEN
+            UPDATE forums SET threads=threads+1 WHERE slug=NEW.forum;
+            RETURN NEW;
+        ELSIF TG_OP='DELETE' OR TG_OP='TRUNCATE' THEN
+            UPDATE forums SET threads=threads-1 WHERE slug=OLD.forum;
+            RETURN OLD;
+        ELSIF TG_OP='UPDATE' THEN
+            IF NEW.forum!=OLD.forum THEN
+                RAISE EXCEPTION 'const .forum';
+            END IF;
+            IF NEW.id!=OLD.id THEN
+                RAISE EXCEPTION 'const .id';
+            END IF;
+            IF NEW.slug!=OLD.slug THEN
+                RAISE EXCEPTION 'const .slug';
+            END IF;
+            RETURN NEW;
+        END IF;
+        RETURN NEW;
+    END
+$update_forum_threads$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS update_forum_threads ON threads;
+CREATE TRIGGER update_forum_threads AFTER UPDATE OR INSERT OR DELETE ON threads
+    FOR EACH ROW EXECUTE PROCEDURE update_forum_threads();
+-- functions
+-- AUTO INSERT TO UsersInForum
+CREATE OR REPLACE FUNCTION users_forum() RETURNS trigger AS $$
+    BEGIN
+        IF NEW.forum IS NOT NULL THEN
+            INSERT INTO UsersInForum(forum, nickname) VALUES (NEW.forum, new.author) ON conflict do nothing;
+        END IF;
+        RETURN new;
+    END;
+$$ language plpgsql;
+-- trigers
+DROP trigger IF EXISTS users_forum ON threads;
+CREATE trigger users_forum AFTER INSERT ON threads
+    FOR EACH ROW EXECUTE PROCEDURE users_forum();
+
+-- AUTO votes+- IN THREADS
+
+CREATE OR REPLACE FUNCTION update_thread_vote_counter() RETURNS trigger AS $$
+    BEGIN
+        IF TG_OP='INSERT' THEN
+            UPDATE threads SET votes=votes+NEW.vote WHERE id=NEW.thread;
+            RETURN NEW;
+        ELSIF TG_OP='UPDATE' THEN
+            UPDATE threads SET votes=votes+(NEW.vote-OLD.vote) WHERE id=NEW.thread;
+            RETURN NEW;
+        ELSE
+            RAISE EXCEPTION 'Invalid call update_thread_vote_counter()';
+        END IF;
+    END
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS update_thread_vote ON votes;
+CREATE TRIGGER update_thread_vote AFTER INSERT OR UPDATE ON votes
+    FOR EACH ROW EXECUTE PROCEDURE update_thread_vote_counter();
+
+--functions
+-- AUTO path IN POSTS
+CREATE OR REPLACE FUNCTION post_path() RETURNS TRIGGER AS
+$$
+BEGIN
+    NEW.path = (SELECT path FROM posts WHERE id = NEW.parent) || NEW.id;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+-- triggers
+DROP TRIGGER IF EXISTS post_path ON posts;
+CREATE TRIGGER post_path BEFORE INSERT ON posts
+    FOR EACH ROW EXECUTE PROCEDURE post_path();

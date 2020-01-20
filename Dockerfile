@@ -24,16 +24,24 @@ RUN apt-get update && apt-get install -y postgresql-$PGVER
 
 USER postgres
 
+COPY forum.sql .
+
+RUN echo "host all  all    0.0.0.0/0  trust" >> /etc/postgresql/$PGVER/main/pg_hba.conf
+RUN  echo 'local all forum trust' | cat - /etc/postgresql/$PGVER/main/pg_hba.conf > /etc/postgresql/$PGVER/main/pg_hba.conf.bak && mv /etc/postgresql/$PGVER/main/pg_hba.conf.bak /etc/postgresql/$PGVER/main/pg_hba.conf
+
 RUN service postgresql start &&\
     psql --command "CREATE USER forum WITH SUPERUSER PASSWORD 'forum';" &&\
     createdb -O forum forum &&\
+    psql -U forum forum < ./forum.sql &&\
     service postgresql stop
 
-#COPY config/pg_hba.conf /etc/postgresql/$PGVER/main/pg_hba.conf
-#COPY config/postgresql.conf /etc/postgresql/$PGVER/main/postgresql.conf
+RUN echo "include_dir='conf.d'" >> /etc/postgresql/$PGVER/main/postgresql.conf
+ADD postgres.conf /etc/postgresql/$PGVER/main/conf.d/basic.conf
+
+EXPOSE 5432
 
 VOLUME  ["/etc/postgresql", "/var/log/postgresql", "/var/lib/postgresql"]
 
-COPY db_create.sql .
-COPY --from=builder /usr/src/app/db_project_for_tsar_of_sparta .
-CMD service postgresql start && ./db_project_for_tsar_of_sparta
+
+COPY --from=builder /usr/src/app/main .
+CMD service postgresql start && ./main
