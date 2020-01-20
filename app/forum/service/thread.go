@@ -57,3 +57,24 @@ func (s Service) CreatePosts(slugOrId string, posts []Post) ([]Post, error) {
 	}
 	return posts, nil
 }
+
+func (s Service) GetThreadBySlug(slug string) (Thread, error) {
+	return s.Repository.GetThreadBySlug(slug)
+}
+
+func (s Service) GetThreadById(id int64) (Thread, error) {
+	return s.Repository.GetThreadById(id)
+}
+
+func (s Service) UpdateThread(t Thread) (Thread, error) {
+	return s.Repository.UpdateThread(t)
+}
+
+func (s Service) GetPosts(slugOrID string, lim int64, since, sort string, desc bool) ([]Post, error) {
+	id, err := s.Repository.GetThreadId(slugOrID)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.Repository.GetPosts(id, lim, since, sort, desc)
+}

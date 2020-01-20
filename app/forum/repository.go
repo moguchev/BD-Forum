@@ -32,6 +32,9 @@ type RepositoryInterface interface {
 	CreatePostsByPacket(int64, string, []Post, time.Time) ([]Post, error)
 	UpdateForumPosts(string, int) error
 	InsertUsersToUsersInForum(map[string]bool, string) error
+	GetThreadById(int64) (Thread, error)
+	UpdateThread(Thread) (Thread, error)
+	GetPosts(int64, int64, string, string, bool) ([]Post, error)
 
 	InitDBSQL() error
 }

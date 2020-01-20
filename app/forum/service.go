@@ -22,5 +22,8 @@ type ServiceInterface interface {
 
 	//threads sectio
 	CreatePosts(string, []Post) ([]Post, error)
-	// GetThreadId(string) (string, error)
+	GetThreadById(int64) (Thread, error)
+	GetThreadBySlug(string) (Thread, error)
+	UpdateThread(Thread) (Thread, error)
+	GetPosts(string, int64, string, string, bool) ([]Post, error)
 }

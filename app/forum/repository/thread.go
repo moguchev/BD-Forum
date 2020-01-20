@@ -1,12 +1,16 @@
 package repository
 
 import (
+	"bytes"
 	"database/sql"
 	"errors"
+	"fmt"
 	"log"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
+	"text/template"
 	"time"
 
 	"github.com/moguchev/BD-Forum/pkg/messages"
@@ -16,9 +20,126 @@ import (
 )
 
 var mutexMapMutex sync.Mutex
+var getPostsTemplate *template.Template
+var getPostsParentTreeTemplate *template.Template
 
 func init() {
 	mutexMapMutex = sync.Mutex{}
+	var err error
+	getPostsTemplate, err = template.New("getPosts").Parse(queryTemplateGetPostsSorted)
+	if err != nil {
+		fmt.Println("Error: cannot create getPostsTemplate template: ", err)
+		panic(err)
+	}
+
+	getPostsParentTreeTemplate, err = template.New("parent_tree").Parse(queryTemplateGetPostsParentTree)
+	if err != nil {
+		fmt.Println("Error: cannot create getPostsParentTreeTemplate template: ", err)
+		panic(err)
+	}
+}
+
+const (
+	queryTemplateGetPostsSorted = `SELECT author, forum, created, posts.id, isEdited, message, coalesce(parent, 0), thread 
+				FROM posts
+					{{.Condition}}
+					ORDER BY {{.OrderBy}}
+					{{.Limit}}`
+	queryTemplateGetPostsParentTree = `JOIN (
+						SELECT parents.id FROM posts AS parents
+						WHERE parents.thread=$1 AND parents.parent IS NULL
+							{{- if .Since}} AND {{.Since}}{{- end}}
+						ORDER BY parents.path[1] {{.Desc}}
+						{{.Limit}}
+						) as p ON path[1]=p.id`
+)
+
+type queryArgs struct {
+	Since string
+	Desc  string
+	Limit string
+}
+
+type comandArgs struct {
+	Condition string
+	OrderBy   string
+	Limit     string
+}
+
+func (r *Repository) GetThreadById(id int64) (Thread, error) {
+	row := r.DbConn.QueryRowx(sql_queries.SelectThreadById, id)
+
+	var t Thread
+	err := row.StructScan(&t)
+	if err != nil {
+		fmt.Println(err)
+		err = errors.New(messages.ThreadNotFound)
+	}
+
+	return t, err
+}
+
+func (r *Repository) GetThreadBySlug(slug string) (Thread, error) {
+	row := r.DbConn.QueryRowx(sql_queries.SelectThreadBySlug, slug)
+
+	var t Thread
+	err := row.StructScan(&t)
+	if err != nil {
+		fmt.Println(err)
+		err = errors.New(messages.ThreadNotFound)
+	}
+
+	return t, err
+}
+
+func (r *Repository) UpdateThread(t Thread) (Thread, error) {
+	var thread Thread
+
+	query := `UPDATE threads SET %s WHERE %s=$1 `
+	postfix := "RETURNING slug, title, message, forum, author, created, votes, id;"
+
+	paramCount := 1
+	set := []string{}
+	var params []interface{}
+	var key interface{}
+	var keyName string
+
+	if t.Id != 0 {
+		key = t.Id
+		keyName = "id"
+	} else {
+		key = t.Slug
+		keyName = "slug"
+	}
+	params = append(params, key)
+
+	if t.Message != "" {
+		paramCount++
+		set = append(set, "message=$"+strconv.Itoa(paramCount))
+		params = append(params, t.Message)
+	}
+	if t.Title != "" {
+		paramCount++
+		set = append(set, "title=$"+strconv.Itoa(paramCount))
+		params = append(params, t.Title)
+	}
+
+	if paramCount <= 1 {
+		set = append(set, keyName+"=$"+strconv.Itoa(paramCount))
+		params = append(params, t.Title)
+	}
+
+	query = fmt.Sprintf(query, strings.Join(set, ", "), keyName)
+	query += postfix
+	log.Printf(query)
+
+	row := r.DbConn.QueryRow(query, params...)
+	err := row.Scan(&thread.Slug, &thread.Title, &thread.Message, &thread.Forum,
+		&thread.Author, &thread.Created, &thread.Votes, &thread.Id)
+	if err != nil {
+		return thread, err
+	}
+	return thread, err
 }
 
 func (r *Repository) GetThreadId(slugOrId string) (int64, error) {
@@ -124,4 +245,98 @@ func (r *Repository) InsertUsersToUsersInForum(users map[string]bool, forum stri
 
 	_, err := r.DbConn.Exec(query, params...)
 	return err
+}
+
+func (r *Repository) GetPosts(threadID, limit int64, since string, sort string, desc bool) ([]Post, error) {
+	posts := make([]Post, 0)
+
+	temp := comandArgs{}
+
+	params := make([]interface{}, 0, 2)
+	params = append(params, threadID)
+
+	var placeholderSince string
+	placeholderDesc := "ASC"
+
+	if desc {
+		placeholderDesc = "DESC"
+	}
+	if limit != 0 {
+		params = append(params, limit)
+		temp.Limit = `LIMIT $` + strconv.Itoa(len(params))
+	}
+	if since != "" {
+		params = append(params, since)
+		compareSign := ">"
+		if desc {
+			compareSign = "<"
+		}
+		paramNum := len(params)
+		queryGetPath := `SELECT %s FROM posts AS since WHERE since.id=%s`
+
+		switch sort {
+		case "flat":
+			//	AND id > $n
+			placeholderSince = fmt.Sprintf(`AND id%s$%d`, compareSign, paramNum)
+		case "tree":
+			//	AND path[&n] > (SELECT since.path from Posts AS since WHERE since.id=&n)
+			placeholderSince = fmt.Sprintf(
+				`AND path%s(%s)`,
+				compareSign,
+				fmt.Sprintf(queryGetPath, `since.path`, fmt.Sprintf(`$%d`, paramNum)),
+			)
+		case "parent_tree":
+			//	AND parents[1] > (SELECT since.path[1] from Posts AS since WHERE since.id=&n)
+			placeholderSince = fmt.Sprintf(
+				`parents.path[1]%s(%s)`,
+				compareSign,
+				fmt.Sprintf(queryGetPath, `since.path[1]`, fmt.Sprintf(`$%d`, paramNum)),
+			)
+		}
+	}
+
+	switch sort {
+	case "flat":
+		temp.Condition = `WHERE thread=$1 ` + placeholderSince
+		temp.OrderBy = fmt.Sprintf(`(created, id) %s`, placeholderDesc)
+	case "tree":
+		temp.Condition = `WHERE thread=$1 ` + placeholderSince
+		temp.OrderBy = fmt.Sprintf(`(path, created) %s`, placeholderDesc)
+	case "parent_tree":
+		conditionBuffer := &bytes.Buffer{}
+		err := getPostsParentTreeTemplate.Execute(conditionBuffer,
+			queryArgs{Since: placeholderSince, Desc: placeholderDesc, Limit: temp.Limit})
+		if err != nil {
+			return posts, err
+		}
+		temp.Condition = conditionBuffer.String()
+		temp.OrderBy = fmt.Sprintf(`path[1] %s, path`, placeholderDesc)
+		temp.Limit = ""
+	}
+
+	queryBuffer := &bytes.Buffer{}
+	err := getPostsTemplate.Execute(queryBuffer, temp)
+	if err != nil {
+		return posts, err
+	}
+	query := queryBuffer.String()
+
+	log.Println(query)
+	rows, err := r.DbConn.Query(query, params...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		p := Post{}
+		err := rows.Scan(&p.Author, &p.Forum, &p.Created, &p.Id, &p.IsEdited, &p.Message, &p.Parent, &p.Thread)
+		if err != nil {
+			return nil, err
+		}
+
+		posts = append(posts, p)
+	}
+
+	return posts, nil
 }

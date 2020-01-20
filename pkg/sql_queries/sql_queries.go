@@ -20,7 +20,18 @@ const (
 									   WHERE LOWER(u.nickname) = LOWER($1)
 									   OR LOWER(u.email) = LOWER($2);`
 
-	Truncate = "TRUNCATE users, forums, threads, votes, posts RESTART IDENTITY CASCADE;"
+	Truncate = `TRUNCATE ForumPosts;
+				TRUNCATE UsersInForum;
+				TRUNCATE TABLE vote CASCADE;
+				TRUNCATE TABLE Post CASCADE;
+				TRUNCATE TABLE Thread CASCADE;
+				TRUNCATE TABLE Forum CASCADE;
+				TRUNCATE TABLE Users CASCADE;`
+
+	SelectAll = `SELECT * FROM (SELECT COUNT(Posts.id) AS post FROM Posts) AS Post,
+				(SELECT COUNT(Threads.id) AS thread FROM Threads) AS Thread,
+				(SELECT COUNT(Forums.slug) AS forum FROM Forums) AS Forum,
+				(SELECT COUNT(Users.nickname) AS user FROM Users) AS Users;`
 
 	InsertForum = `INSERT INTO forums(slug, title, user_nick)
 					 VALUES($1,$2,$3);`
@@ -38,6 +49,10 @@ const (
 							FROM threads 
 							WHERE LOWER(slug) = LOWER($1)`
 
+	SelectThreadById = `SELECT slug, title, message, forum, author, created, votes, id
+							FROM threads 
+							WHERE id=$1`
+
 	QueryTemplateGetForumUsers = `SELECT about, email, fullname, nickname FROM users
 									JOIN (SELECT nickname FROM UsersInForum WHERE forum=$1
 										{{.Since}} ORDER BY nickname {{.Desc}} {{.Limit}}) as l
@@ -47,5 +62,6 @@ const (
 								WHERE LOWER(forum) = ($1) %s ORDER BY created %s %s`
 
 	SelectThreadIdBySlug = `SELECT id FROM threads WHERE lower(slug)=lower($1)`
-	SelectThreadIdById   = `SELECT id FROM threads WHERE id=$1`
+
+	SelectThreadIdById = `SELECT id FROM threads WHERE id=$1`
 )

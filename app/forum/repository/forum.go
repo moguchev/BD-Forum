@@ -105,18 +105,6 @@ func (r *Repository) CreateThread(t Thread) (Thread, error) {
 	return t, err
 }
 
-func (r *Repository) GetThreadBySlug(slug string) (Thread, error) {
-	row := r.DbConn.QueryRowx(sql_queries.SelectThreadBySlug, slug)
-
-	var t Thread
-	err := row.StructScan(&t)
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	return t, err
-}
-
 func (r *Repository) GetThreads(forum string, limit int64, since string, desc bool) ([]Thread, error) {
 	threads := make([]Thread, 0)
 
