@@ -8,7 +8,7 @@ const (
 	Password    = "forum"
 	DBName      = "forum"
 	SSLMode     = "disable"
-	MaxConn     = 1000
+	MaxConn     = 10000000
 	DBSchema    = "forum.sql"
 	DBPath      = "postgresql://forum:forum@localhost:5432/forum"
 )
