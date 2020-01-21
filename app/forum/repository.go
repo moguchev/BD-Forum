@@ -10,7 +10,7 @@ type RepositoryInterface interface {
 
 	// user section
 	CreateUser(User) error
-	UpdateUser(User) error
+	UpdateUser(User) (User, error)
 	GetUserByNickname(string) (User, error)
 	GetUserByEmail(string) (User, error)
 	FindUsers(string, string) ([]User, error)

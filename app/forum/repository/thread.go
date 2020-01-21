@@ -106,63 +106,6 @@ func (r *Repository) GetThreadBySlug(slug string) (Thread, error) {
 	return t, err
 }
 
-func (r *Repository) UpdateThread(t Thread) (Thread, error) {
-	var thread Thread
-
-	query := `UPDATE threads SET %s WHERE %s=$1 `
-	postfix := "RETURNING slug, title, message, forum, author, created, votes, id;"
-
-	paramCount := 1
-	set := []string{}
-	var params []interface{}
-	var key interface{}
-	var keyName string
-
-	if t.Id != 0 {
-		key = t.Id
-		keyName = "id"
-	} else {
-		key = t.Slug
-		keyName = "slug"
-	}
-	params = append(params, key)
-
-	if t.Message != "" {
-		paramCount++
-		set = append(set, "message=$"+strconv.Itoa(paramCount))
-		params = append(params, t.Message)
-	}
-	if t.Title != "" {
-		paramCount++
-		set = append(set, "title=$"+strconv.Itoa(paramCount))
-		params = append(params, t.Title)
-	}
-
-	if paramCount <= 1 {
-		set = append(set, keyName+"=$"+strconv.Itoa(paramCount))
-		params = append(params, t.Title)
-	}
-
-	query = fmt.Sprintf(query, strings.Join(set, ", "), keyName)
-	query += postfix
-
-	row := r.DbConn.QueryRow(query, params...)
-
-	var created time.Time
-	var s sql.NullString
-	err := row.Scan(&s, &thread.Title, &thread.Message, &thread.Forum,
-		&thread.Author, &created, &thread.Votes, &thread.Id)
-	if err != nil {
-		return thread, err
-	}
-	if s.Valid {
-		thread.Slug = s.String
-	}
-	thread.Created = created.Format(time.RFC3339Nano)
-
-	return thread, err
-}
-
 func (r *Repository) GetThreadId(slugOrId string) (int64, error) {
 	var id int64 = 0
 	_, err := strconv.ParseInt(slugOrId, 10, 64)
@@ -362,4 +305,65 @@ func (r *Repository) GetPosts(threadID, limit int64, since string, sort string, 
 func (r *Repository) CreateVote(id int64, v Vote) error {
 	_, err := r.DbConn.Exec(sql_queries.InsertVote, id, v.Nickname, v.Voice)
 	return err
+}
+
+func (r *Repository) UpdateThread(t Thread) (Thread, error) {
+	var thread Thread
+
+	query := `UPDATE threads SET %s WHERE %s=$1 `
+	postfix := "RETURNING slug, title, message, forum, author, created, votes, id;"
+
+	paramCount := 1
+	set := []string{}
+	var params []interface{}
+	var key interface{}
+	var keyName string
+
+	if t.Id != 0 {
+		key = t.Id
+		keyName = "id"
+	} else {
+		key = t.Slug
+		keyName = "slug"
+	}
+	params = append(params, key)
+
+	if t.Message != "" {
+		paramCount++
+		set = append(set, "message=$"+strconv.Itoa(paramCount))
+		params = append(params, t.Message)
+	}
+	if t.Title != "" {
+		paramCount++
+		set = append(set, "title=$"+strconv.Itoa(paramCount))
+		params = append(params, t.Title)
+	}
+
+	if len(set) == 0 {
+		if t.Id != 0 {
+			th, err := r.GetThreadById(int64(t.Id))
+			return th, err
+		}
+		th, err := r.GetThreadBySlug(t.Slug)
+		return th, err
+	}
+
+	query = fmt.Sprintf(query, strings.Join(set, ", "), keyName)
+	query += postfix
+
+	row := r.DbConn.QueryRow(query, params...)
+
+	var created time.Time
+	var s sql.NullString
+	err := row.Scan(&s, &thread.Title, &thread.Message, &thread.Forum,
+		&thread.Author, &created, &thread.Votes, &thread.Id)
+	if err != nil {
+		return thread, err
+	}
+	if s.Valid {
+		thread.Slug = s.String
+	}
+	thread.Created = created.Format(time.RFC3339Nano)
+
+	return thread, err
 }

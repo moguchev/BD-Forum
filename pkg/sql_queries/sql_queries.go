@@ -60,7 +60,7 @@ const (
 
 	SelectThreadsByForum = `SELECT author, forum, created, id, message, slug, title, votes
 								FROM threads 
-								WHERE LOWER(forum) = ($1) %s ORDER BY created %s %s`
+								WHERE LOWER(forum) = LOWER($1) %s ORDER BY created %s %s`
 
 	SelectThreadIdBySlug = `SELECT id FROM threads WHERE lower(slug)=lower($1)`
 

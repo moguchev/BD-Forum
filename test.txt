@@ -1,0 +1,7 @@
+sudo ps -eaf|grep 5000
+sudo kill -9 22828
+
+sudo docker build -t moguchev .
+sudo docker run -p 5000:5000 --name moguchev -t moguchev
+
+./tech-db-forum func -k -u http://localhost:5001/api -r report.html

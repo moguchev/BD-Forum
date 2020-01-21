@@ -75,10 +75,8 @@ func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	if len(users) > 0 {
 		code = 409
 		answer, _ = json.Marshal(users)
-		log.Println(messages.UserAlreadyExists)
 	} else {
 		answer, _ = json.Marshal(user)
-		log.Println(messages.UserWasCreated, user)
 	}
 
 	w.WriteHeader(code)
@@ -110,7 +108,7 @@ func (h *Handler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	}
 	user.Nickname = nickname
 
-	e := h.Service.UpdateUser(user)
+	u, e := h.Service.UpdateUser(user)
 
 	var answer []byte
 	var msg Error
@@ -126,7 +124,7 @@ func (h *Handler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 		}
 		answer, _ = json.Marshal(msg)
 	} else {
-		answer, _ = json.Marshal(user)
+		answer, _ = json.Marshal(u)
 	}
 
 	w.WriteHeader(code)

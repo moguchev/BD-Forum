@@ -1,6 +1,9 @@
 package service
 
 import (
+	"errors"
+
+	"github.com/moguchev/BD-Forum/pkg/messages"
 	. "github.com/moguchev/BD-Forum/pkg/models"
 )
 
@@ -20,9 +23,15 @@ func (s Service) CreateUser(u User) ([]User, error) {
 	return nil, nil
 }
 
-func (s Service) UpdateUser(u User) error {
-	err := s.Repository.UpdateUser(u)
-	return err
+func (s Service) UpdateUser(u User) (User, error) {
+	if u.About == "" && u.Email == "" && u.Fullname == "" {
+		user, err := s.Repository.GetUserByNickname(u.Nickname)
+		if err != nil {
+			err = errors.New(messages.UserNotFound)
+		}
+		return user, err
+	}
+	return s.Repository.UpdateUser(u)
 }
 
 func (s Service) GetUser(nickname string) (User, error) {

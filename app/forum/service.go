@@ -8,7 +8,7 @@ type ServiceInterface interface {
 	// user section
 	CreateUser(User) ([]User, error)
 	GetUser(string) (User, error)
-	UpdateUser(User) error
+	UpdateUser(User) (User, error)
 
 	// service section
 	Clear() error

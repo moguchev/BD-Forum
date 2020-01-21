@@ -19,11 +19,7 @@ func (s Service) CreateForum(nf NewForum) (Forum, error) {
 		}
 	}
 
-	f.Slug = nf.Slug
-	f.Title = nf.Title
-	f.User = nf.User
-	f.Posts = 0
-	f.Threads = 0
+	f, _ = s.Repository.GetForum(nf.Slug)
 
 	return f, nil
 }

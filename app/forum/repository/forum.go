@@ -51,7 +51,9 @@ func (r *Repository) CreateForum(nf NewForum) error {
 		}
 		return err
 	}
-
+	if err == nil {
+		_, err = r.DbConn.Exec(`INSERT INTO ForumPosts(forum, posts) VALUES ($1, 0)`, nf.Slug)
+	}
 	return nil
 }
 
@@ -132,6 +134,11 @@ func (r *Repository) GetThreads(forum string, limit int64, since string, desc bo
 	}
 
 	query = fmt.Sprintf(query, placeholderSince, placeholderDesc, placeholderLimit)
+	log.Printf(query)
+
+	log.Printf("FORUM: %s", forum)
+	log.Printf("LIMIT: %d", limit)
+	log.Printf("SINCE: %s", since)
 	rows, err := r.DbConn.Queryx(query, params...)
 
 	if err != nil {
@@ -221,7 +228,6 @@ func (r *Repository) GetUsersByForum(forum string, limit int64, since string, de
 		}
 		users = append(users, user)
 	}
-	log.Println(users)
 	return users, nil
 }
 

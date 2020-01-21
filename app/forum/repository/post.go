@@ -48,7 +48,7 @@ func (r *Repository) UpdatePost(id int64, p Post) (Post, error) {
 		params = append(params, p.Parent)
 	}
 	if len(set) == 0 {
-		set = append(set, "id=$")
+		return r.GetPostById(id)
 	}
 	query = fmt.Sprintf(query, strings.Join(set, ", "))
 	query += postfix

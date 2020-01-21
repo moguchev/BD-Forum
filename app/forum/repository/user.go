@@ -3,7 +3,12 @@ package repository
 import (
 	"errors"
 	"fmt"
+	"log"
+	"strconv"
+	"strings"
 
+	"github.com/jackc/pgx"
+	"github.com/moguchev/BD-Forum/pkg/codes"
 	"github.com/moguchev/BD-Forum/pkg/messages"
 	. "github.com/moguchev/BD-Forum/pkg/models"
 	"github.com/moguchev/BD-Forum/pkg/sql_queries"
@@ -20,20 +25,59 @@ func (r *Repository) CreateUser(u User) error {
 	return nil
 }
 
-func (r *Repository) UpdateUser(u User) error {
-	res, err := r.DbConn.Exec(sql_queries.UpdateUser,
-		u.About, u.Email, u.Fullname, u.Nickname)
+func (r *Repository) UpdateUser(u User) (User, error) {
+	query := `UPDATE Users SET %s WHERE lower(nickname)=lower($1) `
+	postfix := "RETURNING about, email, fullname, nickname;"
 
+	paramCount := 1
+	set := []string{}
+	var params []interface{}
+	params = append(params, u.Nickname)
+
+	if u.About != "" {
+		paramCount++
+		set = append(set, "about=$"+strconv.Itoa(paramCount))
+		params = append(params, u.About)
+	}
+	if u.Email != "" {
+		paramCount++
+		set = append(set, "email=$"+strconv.Itoa(paramCount))
+		params = append(params, u.Email)
+	}
+	if u.Fullname != "" {
+		paramCount++
+		set = append(set, "fullname=$"+strconv.Itoa(paramCount))
+		params = append(params, u.Fullname)
+	}
+
+	if paramCount <= 1 {
+		return u, nil
+	}
+
+	query = fmt.Sprintf(query, strings.Join(set, ", "))
+	query += postfix
+	log.Printf(query)
+	row := r.DbConn.QueryRowx(query, params...)
+
+	var user User
+	err := row.Scan(&user.About, &user.Email, &user.Fullname, &user.Nickname)
 	if err != nil {
-		return errors.New(messages.ConflictsInUserUpdate)
+		e, _ := err.(pgx.PgError)
+
+		switch e.Code {
+		case codes.NotNullViolation, codes.ForeignKeyViolation:
+			err = errors.New(messages.UserNotFound)
+			break
+		case codes.UniqueViolation:
+			err = errors.New(messages.ConflictsInUserUpdate)
+			break
+		default:
+			err = errors.New(messages.UserNotFound)
+			break
+		}
 	}
 
-	count, _ := res.RowsAffected()
-
-	if count == 0 {
-		return errors.New(messages.UserNotFound)
-	}
-	return nil
+	return user, err
 }
 
 func (r *Repository) GetUserByNickname(nickname string) (User, error) {

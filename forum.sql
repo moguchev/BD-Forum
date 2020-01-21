@@ -3,7 +3,7 @@ CREATE EXTENSION IF NOT EXISTS citext;
 -- ######################################################
 -- USERS
 -- ######################################################
-DROP TABLE IF EXISTS users;
+DROP TABLE IF EXISTS users CASCADE;
 CREATE UNLOGGED TABLE users(
     about TEXT,
     email CITEXT NOT NULL UNIQUE CONSTRAINT email_right CHECK(email ~ '^.*@[A-Za-z0-9\-_\.]*$'),
@@ -17,21 +17,22 @@ CREATE INDEX IF NOT EXISTS idx_users_email ON users (email);
 -- ######################################################
 -- Forums
 -- ######################################################
-DROP TABLE IF EXISTS forums;
+DROP TABLE IF EXISTS forums CASCADE;
 CREATE UNLOGGED TABLE forums (
+    slug CITEXT PRIMARY KEY UNIQUE CONSTRAINT slug_correct CHECK(slug ~ '^(\d|\w|-|_)*(\w|-|_)(\d|\w|-|_)*$'),
+    threads INTEGER DEFAULT 0,
     posts INTEGER DEFAULT 0,
-    slug CITEXT PRIMARY KEY CONSTRAINT slug_correct CHECK(slug ~ '^(\d|\w|-|_)*(\w|-|_)(\d|\w|-|_)*$'),
-    threads INTEGER DEFAULT 0,  
-    title TEXT NOT NULL,
-    user_nick CITEXT REFERENCES users(nickname) ON DELETE RESTRICT ON UPDATE RESTRICT
+    user_nick CITEXT REFERENCES Users (nickname) ON DELETE RESTRICT ON UPDATE RESTRICT NOT NULL,
+    title TEXT NOT NULL
 );
+
 -- indexes
 CREATE INDEX IF NOT EXISTS idx_forum_slug ON forums (LOWER(slug));
 
 -- ######################################################
 -- USERS IN FORUM
 -- ######################################################
-DROP TABLE IF EXISTS UsersInForum;
+DROP TABLE IF EXISTS UsersInForum CASCADE;
 CREATE UNLOGGED TABLE UsersInForum (
     nickname CITEXT COLLATE "POSIX",
     forum CITEXT
@@ -42,7 +43,7 @@ CREATE UNIQUE INDEX forum_users_idx ON UsersInForum(forum, nickname);
 -- ######################################################
 -- Threads
 -- ######################################################
-DROP TABLE IF EXISTS threads;
+DROP TABLE IF EXISTS threads CASCADE;
 CREATE UNLOGGED TABLE threads (
     id SERIAL PRIMARY KEY,
     slug CITEXT UNIQUE CONSTRAINT slug_correct CHECK(slug ~ '^(\d|\w|-|_)*(\w|-|_)(\d|\w|-|_)*$'),
@@ -62,7 +63,7 @@ CREATE INDEX IF NOT EXISTS thread_forum_created on threads(LOWER(forum), created
 -- ######################################################
 -- VOTES
 -- ######################################################
-DROP TABLE IF EXISTS votes;
+DROP TABLE IF EXISTS votes CASCADE;
 CREATE UNLOGGED TABLE votes (
     thread BIGINT REFERENCES threads (id) ON DELETE CASCADE ON UPDATE CASCADE,
     author CITEXT REFERENCES users (nickname) ON DELETE CASCADE ON UPDATE CASCADE NOT NULL,
@@ -81,7 +82,7 @@ CREATE OR REPLACE FUNCTION get_thread_by_post(post_ BIGINT) RETURNS INTEGER AS $
     END;
 $$ LANGUAGE plpgsql;
 
-DROP TABLE IF EXISTS posts;
+DROP TABLE IF EXISTS posts CASCADE;
 CREATE UNLOGGED TABLE posts (
     author CITEXT REFERENCES users (nickname) NOT NULL,
     created TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -105,12 +106,11 @@ CREATE INDEX IF NOT EXISTS idx_sth ON posts (LOWER(author));
 -- ######################################################
 -- FORUM-POSTS
 -- ######################################################
-DROP TABLE IF EXISTS ForumPosts;
+DROP TABLE IF EXISTS ForumPosts CASCADE;
 CREATE UNLOGGED TABLE ForumPosts (
     forum citext PRIMARY KEY,
     posts INTEGER DEFAULT 0
 );
-
 
 -- functions
 -- AUTO ForumPosts
@@ -225,3 +225,14 @@ $$ LANGUAGE plpgsql;
 DROP TRIGGER IF EXISTS post_path ON posts;
 CREATE TRIGGER post_path BEFORE INSERT ON posts
     FOR EACH ROW EXECUTE PROCEDURE post_path();
+
+CREATE OR REPLACE FUNCTION forum_user() RETURNS trigger AS $forum_user$
+    BEGIN
+        NEW.user_nick = (SELECT nickname FROM users WHERE lower(nickname)=lower(NEW.user_nick));
+        RETURN NEW;
+    END
+$forum_user$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS forum_user ON forums;
+CREATE TRIGGER forum_user BEFORE INSERT ON forums
+    FOR EACH ROW EXECUTE PROCEDURE forum_user();
