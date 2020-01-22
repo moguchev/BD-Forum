@@ -55,6 +55,7 @@ CREATE UNLOGGED TABLE threads (
     votes INTEGER NOT NULL DEFAULT 0
 );
 -- indexes
+CREATE INDEX IF NOT EXISTS thread_id ON threads (LOWER(slug), id);
 CREATE UNIQUE INDEX thread_slug_index ON threads (LOWER(slug));
 CREATE INDEX IF NOT EXISTS thread_author ON threads (LOWER(author));
 CREATE INDEX IF NOT EXISTS thread_forum ON threads (forum);
@@ -236,3 +237,5 @@ $forum_user$ LANGUAGE plpgsql;
 DROP TRIGGER IF EXISTS forum_user ON forums;
 CREATE TRIGGER forum_user BEFORE INSERT ON forums
     FOR EACH ROW EXECUTE PROCEDURE forum_user();
+
+cluster UsersInForum USING forum_users_idx;
